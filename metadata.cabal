@@ -1,0 +1,25 @@
+name:           media-metadata
+version:        0.0
+license:        BSD3 
+license-file:   LICENSE
+category:       Audio, Parsing
+author:         Sean Mitchell <seanmtchll@gmail.com>
+maintainer:     Sean Mitchell <seanmtchll@gmail.com>
+stability:      experimental
+synopsis:    Metadata information for media files 
+cabal-version: >= 1.8
+build-type:     Simple
+description:
+    Metadata information for media files 
+extra-source-files:
+    README.markdown
+library
+    build-depends:  base,
+                    containers,
+                    bytestring,
+                    attoparsec,
+                    text
+    exposed-modules:    Audio.Metadata
+    other-modules:      Audio.Metadata.ID3
+                        Audio.Metadata.Types
+                    

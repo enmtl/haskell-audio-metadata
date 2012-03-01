@@ -25,9 +25,12 @@ id3 = BC.pack "ID3"
 
 newtype EncodingErrors = EncodingErrors Int
 noEncodingErrors = EncodingErrors 0
-unsynchedFrameSize (EncodingErrors eerrs) = testBit eerrs 0
+unsynchedFrameSize (EncodingErrors eerrs) = testBit eerrs (fromEnum UnsynchedFrameSize)
+shortIdentifier (EncodingErrors eerrs) = testBit eerrs (fromEnum ShortIdentifier)
 
-data EncodingError = UnsynchedFrameSize
+data EncodingError = 
+        UnsynchedFrameSize -- Frame Size
+    |   ShortIdentifier
     deriving Enum
 
 errors :: [EncodingError] -> EncodingErrors
@@ -146,13 +149,23 @@ id3ExtendedHeader = do
                     else return Nothing
     return $ ExtendedHeader {update=update, crc=crc, restriction=restriction}
 
-identifier :: Version -> Parser B.ByteString
-identifier (major, minor) | major == 2 = take 3
-                          | otherwise = take 4 
+identifier :: Version -> Parser (Maybe EncodingError, B.ByteString)
+identifier (major, minor) 
+        | major == 2 = do
+                id' <- take 3
+                when (not $ valid id') $ fail "id3 frame identifier"
+                return (Nothing, id')
+        | otherwise = do
+                id' <- take 4 
+                let shortId = valid (B.init id') && B.last id' == 0
+                when ((not $ valid id') && not shortId) $ 
+                    fail "id3 frame identifier"
+                return (if shortId then Just ShortIdentifier else Nothing, id')
+    where valid = B.all $ inClass "A-Z0-9"
 
 frameSize :: Version -> EncodingErrors -> Parser Int
 frameSize (major, minor) ee | major == 2 = int <$> take 3
-                            | hasError UnsynchedFrameSize ee = int <$> take 4
+                            | major == 3 = int <$> take 4 -- hasError UnsynchedFrameSize ee = int <$> take 4
                             | otherwise = synchsafeInt <$> take 4
 
 
@@ -174,12 +187,10 @@ textUTF16 n = do
                     else Encoding.decodeUtf16LE
     T.splitOn (T.pack "\NUL\NUL") . decode <$> take (n - 2)
 
-frame :: Version -> EncodingErrors -> Parser (FrameInfo, FieldContent)
+frame :: Version -> EncodingErrors -> Parser (EncodingErrors, FrameInfo, FieldContent)
 frame version eerrors = do
-    frameId <- identifier version
-    when (not . B.all (inClass "A-Z0-9") $ frameId) $ 
-        fail "id3frame"
-         
+    (maybeIdErr, frameId) <- identifier version
+
     size <- frameSize version eerrors
     let getFlag = if version >= (3,0) then anyWord8 else return 0
     statusFlags <- getFlag
@@ -200,10 +211,11 @@ frame version eerrors = do
             , statusFlags= statusFlags
             , formatFlags= formatFlags
             }
-    return (info, content)
+        frameEE = errors $ catMaybes [maybeIdErr]
+    return (frameEE, info, content)
 
 
-parseFrames :: Version -> Parser [(FrameInfo, FieldContent)]
+parseFrames :: Version -> Parser [(EncodingErrors, FrameInfo, FieldContent)]
 parseFrames ver = def
   where 
     def = many $ frame ver noEncodingErrors
@@ -226,8 +238,9 @@ tags = do
         () <$ id3ExtendedHeader 
     frames <- parseFrames (version header)
         
-    let get (info, val) = (,val) . fromEnum <$> M.lookup (frameId info) 
-                                                    (frameIds (version header))
+    let lookup id' ee | shortIdentifier ee = M.lookup (B.init id') (frameIds (2,0))
+                      | otherwise = M.lookup id' $ frameIds (version header)
+        get (ee, info, val) = (,val) . fromEnum <$> lookup (frameId info) ee
     return . IM.fromList . catMaybes . map get $ frames
 
 test :: Parser ()
@@ -239,7 +252,7 @@ info = do
     when (extended $ flags header) $
         () <$ id3ExtendedHeader 
     frames <- parseFrames (version header)
-    return (header, map fst frames)
+    return (header, map (\(_,info,_) -> info) frames)
 
 
     

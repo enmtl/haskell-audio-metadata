@@ -46,6 +46,25 @@ data FrameID = Title
              | Artist
     deriving (Show, Enum)
 
+data FrameContent = Text [T.Text]
+                  | Bytes B.ByteString
+    deriving Show
+
+newtype Metadata = Metadata (IM.IntMap FrameContent)
+    deriving Show
+
+metadataLookup :: FrameID -> Metadata -> Maybe [T.Text]
+metadataLookup frameId (Metadata map) = 
+    case IM.lookup (fromEnum frameId) map of
+        Just (Text texts) -> Just texts
+        otherwise -> Nothing
+
+instance AudioData Metadata where
+    title = metadataLookup Title
+    album = metadataLookup Album
+    track = metadataLookup Track
+    artist = metadataLookup Artist
+
 data Flags = Flags
             { unsynchronization :: Bool
             , extended :: Bool
@@ -187,7 +206,7 @@ textUTF16 n = do
                     else Encoding.decodeUtf16LE
     T.splitOn (T.pack "\NUL\NUL") . decode <$> take (n - 2)
 
-frame :: Version -> EncodingErrors -> Parser (EncodingErrors, FrameInfo, FieldContent)
+frame :: Version -> EncodingErrors -> Parser (EncodingErrors, FrameInfo, FrameContent)
 frame version eerrors = do
     (maybeIdErr, frameId) <- identifier version
 
@@ -215,7 +234,7 @@ frame version eerrors = do
     return (frameEE, info, content)
 
 
-parseFrames :: Version -> Parser [(EncodingErrors, FrameInfo, FieldContent)]
+parseFrames :: Version -> Parser [(EncodingErrors, FrameInfo, FrameContent)]
 parseFrames ver = def
   where 
     def = many $ frame ver noEncodingErrors
@@ -231,8 +250,8 @@ parseFrames ver = def
         when (null frames || null (tail frames)) $ fail "no encoding error"
         return $ frames
     
-tags :: Parser (IM.IntMap FieldContent)
-tags = do
+metadata :: Parser Metadata
+metadata = do
     header <- id3Header id3
     when (extended $ flags header) $
         () <$ id3ExtendedHeader 
@@ -241,7 +260,7 @@ tags = do
     let lookup id' ee | shortIdentifier ee = M.lookup (B.init id') (frameIds (2,0))
                       | otherwise = M.lookup id' $ frameIds (version header)
         get (ee, info, val) = (,val) . fromEnum <$> lookup (frameId info) ee
-    return . IM.fromList . catMaybes . map get $ frames
+    return . Metadata . IM.fromList . catMaybes . map get $ frames
 
 test :: Parser ()
 test = () <$ string id3 

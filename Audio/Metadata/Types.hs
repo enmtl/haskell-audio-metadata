@@ -1,9 +1,11 @@
 module Audio.Metadata.Types
   where
 
-import qualified Data.Text as Text
-import qualified Data.ByteString as B
+import Data.Text as Text
 
-data FieldContent = Text [Text.Text]
-                  | Bytes B.ByteString
-    deriving Show
+
+class AudioData a where
+    title :: a -> Maybe [Text]
+    album :: a -> Maybe [Text]
+    track :: a -> Maybe [Text]
+    artist :: a -> Maybe [Text]

@@ -14,6 +14,7 @@ import qualified Data.IntMap as IM
 import qualified Data.Map as M
 import qualified Data.Text.Encoding as Encoding
 
+import Data.Char (toUpper)
 import Data.Maybe
 import Data.Function
 import Data.List (sortBy)
@@ -98,7 +99,8 @@ oggPreComments = () <$ do
 toMetadata :: [(B.ByteString, Text.Text)] -> Metadata
 toMetadata = Metadata . IM.fromAscList . group . sortBy (compare `on` fst) . tags
   where
-    fromRaw (field, cnt) = flip (,) cnt . fromEnum <$> M.lookup field fields
+    fromRaw (field, cnt) = flip (,) cnt . fromEnum <$> 
+                                M.lookup (BC.map toUpper field) fields
     tags = catMaybes . map fromRaw
     group [] = []
     group ((key,val):xs) = let (vals, rest) = span ((==) key . fst) xs

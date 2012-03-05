@@ -20,6 +20,7 @@ library
                     attoparsec,
                     text
     exposed-modules:    Audio.Metadata
-    other-modules:      Audio.Metadata.ID3
-                        Audio.Metadata.Types
+    other-modules:      Audio.Metadata.Types
+                        Audio.Metadata.ID3
+                        Audio.Metadata.VorbisComment
                     

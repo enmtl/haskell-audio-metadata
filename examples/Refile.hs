@@ -71,12 +71,15 @@ main = do
         order = group . sortBy (compare `on` (snd . snd)) $ classifed
 
     forM order $ \(paths, files) -> do
-        let path =  foldl' (</>) "refile" paths
+        let path =  foldl' (</>) "music" paths
         createDirectoryIfMissing True path
         forM files $ \(file, name) -> do
             let name' = addExtension (toFilepath name) $ takeExtension file
-            putStrLn file
-            copyFile file (path </> name')
+                newfile = path </> name'
+            exists <- doesFileExist newfile
+            if exists
+                then putStrLn $ "\tfile exists... skipping " ++ file
+                else renameFile file (path </> name')
             
         
     when (not . null $ rejects) $ () <$ do

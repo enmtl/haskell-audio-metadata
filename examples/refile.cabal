@@ -1,0 +1,23 @@
+name:           refile
+version:        0.0
+license:        BSD3 
+license-file:   ../LICENSE
+category:       Audio, Parsing
+author:         Sean Mitchell <seanmtchll@gmail.com>
+maintainer:     Sean Mitchell <seanmtchll@gmail.com>
+stability:      experimental
+synopsis:       Moves and renames audio files based on metadata information 
+cabal-version: >= 1.8
+build-type:     Simple
+description:
+    Moves and renames audio files based on metadata information 
+
+Executable refile
+    Main-is: Refile.hs
+    build-depends:  base,
+                    directory,
+                    filepath,
+                    filemanip,
+                    text,
+                    media-metadata
+                    

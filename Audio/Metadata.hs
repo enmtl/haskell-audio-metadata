@@ -4,6 +4,8 @@ module Audio.Metadata
     ,   metadata
     ,   container
     ,   parseFile
+    ,   module Audio.Metadata.Types
+    ,   Metadata
     )
   where
 import Control.Applicative
